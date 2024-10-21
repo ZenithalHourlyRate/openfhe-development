@@ -37,11 +37,14 @@
 
 using namespace lbcrypto;
 
+void EvalNoiseBGV(CryptoContext<DCRTPoly> &cryptoContext, PrivateKey<DCRTPoly> privateKey, ConstCiphertext<DCRTPoly> ciphertext, std::string tag);
+
 int main() {
     // Sample Program: Step 1 - Set CryptoContext
     CCParams<CryptoContextBGVRNS> parameters;
     parameters.SetMultiplicativeDepth(2);
-    parameters.SetPlaintextModulus(65537);
+    usint ptm = 65537;
+    parameters.SetPlaintextModulus(ptm);
 
     CryptoContext<DCRTPoly> cryptoContext = GenCryptoContext(parameters);
     // Enable features that you wish to use
@@ -79,6 +82,9 @@ int main() {
     auto ciphertext1 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
     auto ciphertext2 = cryptoContext->Encrypt(keyPair.publicKey, plaintext2);
     auto ciphertext3 = cryptoContext->Encrypt(keyPair.publicKey, plaintext3);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertext1, "fresh1");
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertext2, "fresh2");
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertext3, "fresh3");
 
     // Sample Program: Step 4 - Evaluation
 
@@ -103,9 +109,14 @@ int main() {
     Plaintext plaintextAddResult;
     cryptoContext->Decrypt(keyPair.secretKey, ciphertextAddResult, &plaintextAddResult);
 
+    std::cout << "#1 + #2 + #3: " << plaintextAddResult << std::endl;
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextAddResult, "add");
+
     // Decrypt the result of multiplications
     Plaintext plaintextMultResult;
     cryptoContext->Decrypt(keyPair.secretKey, ciphertextMultResult, &plaintextMultResult);
+
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMultResult, "mult");
 
     // Decrypt the result of rotations
     Plaintext plaintextRot1;
@@ -122,6 +133,11 @@ int main() {
     plaintextRot3->SetLength(vectorOfInts1.size());
     plaintextRot4->SetLength(vectorOfInts1.size());
 
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextRot1, "rot1");
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextRot2, "rot2");
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextRot3, "rot-1");
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextRot4, "rot-2");
+
     std::cout << "Plaintext #1: " << plaintext1 << std::endl;
     std::cout << "Plaintext #2: " << plaintext2 << std::endl;
     std::cout << "Plaintext #3: " << plaintext3 << std::endl;
@@ -136,4 +152,70 @@ int main() {
     std::cout << "Right rotation of #1 by 2: " << plaintextRot4 << std::endl;
 
     return 0;
+}
+
+void EvalNoiseBGV(CryptoContext<DCRTPoly> &cryptoContext, PrivateKey<DCRTPoly> privateKey, ConstCiphertext<DCRTPoly> ciphertext, std::string tag) {
+    Plaintext ptxt;
+    cryptoContext->Decrypt(privateKey, ciphertext, &ptxt);
+    //const auto ptm = cryptoContext->GetCryptoParameters()->GetPlaintextModulus();
+
+    const std::vector<DCRTPoly>& cv = ciphertext->GetElements();
+    DCRTPoly s                      = privateKey->GetPrivateElement();
+
+    size_t sizeQl = cv[0].GetParams()->GetParams().size();
+    size_t sizeQs = s.GetParams()->GetParams().size();
+
+    size_t diffQl = sizeQs - sizeQl;
+
+    auto scopy(s);
+    scopy.DropLastElements(diffQl);
+
+    DCRTPoly sPower(scopy);
+
+    DCRTPoly b = cv[0];
+    b.SetFormat(Format::EVALUATION);
+
+    DCRTPoly ci;
+    for (size_t i = 1; i < cv.size(); i++) {
+        ci = cv[i];
+        ci.SetFormat(Format::EVALUATION);
+
+        b += sPower * ci;
+        sPower *= scopy;
+    }
+
+    b.SetFormat(Format::COEFFICIENT);
+    Poly b_big = b.CRTInterpolate();
+
+    Poly plain_big;
+
+    DCRTPoly plain_dcrt = ptxt->GetElement<DCRTPoly>();
+    auto plain_dcrt_size = plain_dcrt.GetNumOfElements();
+
+    if (plain_dcrt_size > 0) {
+        plain_dcrt.SetFormat(Format::COEFFICIENT);
+        plain_big = plain_dcrt.CRTInterpolate();
+    } else {
+        std::vector<int64_t> value = ptxt->GetPackedValue();
+        Plaintext repack = cryptoContext->MakePackedPlaintext(value);
+        DCRTPoly plain_repack = repack->GetElement<DCRTPoly>();
+        plain_repack.SetFormat(Format::COEFFICIENT);
+        plain_big = plain_repack.CRTInterpolate();
+    }
+
+    auto plain_modulus = plain_big.GetModulus();
+    auto b_modulus = b_big.GetModulus();
+    plain_big.SwitchModulus(b_big.GetModulus(), b_big.GetRootOfUnity(), 0, 0);
+
+    Poly res = b_big - plain_big;
+
+    double noise = (log2(res.Norm()));
+
+    double logQ = 0;
+    for (usint i = 0; i < sizeQl; i++) {
+        double logqi = log2(cv[0].GetParams()->GetParams()[i]->GetModulus().ConvertToInt());
+        logQ += logqi;
+    }
+
+    std::cout << tag << '\t' << " logQ: " << logQ << " noise: " << noise << " budget " << logQ - noise - 1 << std::endl;
 }

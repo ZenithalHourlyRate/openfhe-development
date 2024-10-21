@@ -45,6 +45,8 @@
 
 using namespace lbcrypto;
 
+void EvalNoiseBGV(CryptoContext<DCRTPoly> &cryptoContext, PrivateKey<DCRTPoly> privateKey, ConstCiphertext<DCRTPoly> ciphertext, std::string tag);
+
 int main(int argc, char* argv[]) {
     ////////////////////////////////////////////////////////////
     // Set-up of parameters
@@ -72,6 +74,11 @@ int main(int argc, char* argv[]) {
     parameters.SetMultiplicativeDepth(3);
     parameters.SetPlaintextModulus(536903681);
     parameters.SetMaxRelinSkDeg(3);
+    parameters.SetScalingTechnique(FIXEDMANUAL);
+    parameters.SetKeySwitchTechnique(HYBRID);
+    parameters.SetDigitSize(2);
+
+    std::cout << parameters << std::endl;
 
     CryptoContext<DCRTPoly> cryptoContext = GenCryptoContext(parameters);
     // enable features that you wish to use
@@ -181,6 +188,7 @@ int main(int argc, char* argv[]) {
     ciphertexts.push_back(cryptoContext->Encrypt(keyPair.publicKey, plaintext5));
     ciphertexts.push_back(cryptoContext->Encrypt(keyPair.publicKey, plaintext6));
     ciphertexts.push_back(cryptoContext->Encrypt(keyPair.publicKey, plaintext7));
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertexts[0], "\nfresh1");
 
     processingTime = TOC(t);
 
@@ -195,6 +203,7 @@ int main(int argc, char* argv[]) {
     TIC(t);
 
     auto ciphertextMult = cryptoContext->EvalMult(ciphertexts[0], ciphertexts[1]);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMult, "\nmult");
 
     processingTime = TOC(t);
     std::cout << "\nTotal time of multiplying 2 ciphertexts using EvalMult w/ "
@@ -224,6 +233,7 @@ int main(int argc, char* argv[]) {
     TIC(t);
 
     auto ciphertextMult7 = cryptoContext->EvalMultMany(ciphertexts);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMult7, "\nmult7");
 
     processingTime = TOC(t);
 
@@ -252,7 +262,11 @@ int main(int argc, char* argv[]) {
     TIC(t);
 
     auto ciphertextMult12 = cryptoContext->EvalMultNoRelin(ciphertexts[0], ciphertexts[1]);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMult12, "\nmultno");
+    auto ciphertextRelin = cryptoContext->Relinearize(ciphertextMult12);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextRelin, "\nmultrl");
     cryptoContext->ModReduceInPlace(ciphertextMult12);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMult12, "\nmultmo");
 
     processingTime = TOC(t);
 
@@ -261,8 +275,10 @@ int main(int argc, char* argv[]) {
     std::cout << "Time of multiplying 2 ciphertexts w/o relinearization: " << processingTime << "ms" << std::endl;
 
     auto ciphertexts2 = cryptoContext->ModReduce(ciphertexts[2]);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertexts2, "\nmultmo2");
 
     auto ciphertextMult123 = cryptoContext->EvalMultAndRelinearize(ciphertextMult12, ciphertexts2);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMult123, "\nmult123");
 
     Plaintext plaintextDecMult123;
 
@@ -280,9 +296,13 @@ int main(int argc, char* argv[]) {
     std::cout << "\nRunning a depth-3 multiplication w/o relinearization...";
 
     ciphertextMult12 = cryptoContext->EvalMultNoRelin(ciphertexts[0], ciphertexts[1]);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMult12, "\nmultno2");
     cryptoContext->ModReduceInPlace(ciphertextMult12);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMult12, "\nmultmo2");
     ciphertextMult123 = cryptoContext->EvalMultNoRelin(ciphertextMult12, ciphertexts2);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMult123, "\nmult1232");
     ciphertextMult123 = cryptoContext->ModReduce(ciphertextMult123);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMult123, "\nmult1232");
     std::cout << "Completed\n";
 
     cryptoContext->Decrypt(keyPair.secretKey, ciphertextMult123, &plaintextDecMult123);
@@ -319,4 +339,72 @@ int main(int argc, char* argv[]) {
     std::cout << plaintextDecMult123 << std::endl;
 
     return 0;
+}
+
+void EvalNoiseBGV(CryptoContext<DCRTPoly> &cryptoContext, PrivateKey<DCRTPoly> privateKey, ConstCiphertext<DCRTPoly> ciphertext, std::string tag) {
+    Plaintext ptxt;
+    cryptoContext->Decrypt(privateKey, ciphertext, &ptxt);
+    //const auto ptm = cryptoContext->GetCryptoParameters()->GetPlaintextModulus();
+
+    const std::vector<DCRTPoly>& cv = ciphertext->GetElements();
+    DCRTPoly s                      = privateKey->GetPrivateElement();
+
+    size_t sizeQl = cv[0].GetParams()->GetParams().size();
+    size_t sizeQs = s.GetParams()->GetParams().size();
+
+    size_t diffQl = sizeQs - sizeQl;
+
+    auto scopy(s);
+    scopy.DropLastElements(diffQl);
+
+    DCRTPoly sPower(scopy);
+
+    DCRTPoly b = cv[0];
+    b.SetFormat(Format::EVALUATION);
+
+    DCRTPoly ci;
+    for (size_t i = 1; i < cv.size(); i++) {
+        ci = cv[i];
+        ci.SetFormat(Format::EVALUATION);
+
+        b += sPower * ci;
+        sPower *= scopy;
+    }
+
+    b.SetFormat(Format::COEFFICIENT);
+    Poly b_big = b.CRTInterpolate();
+
+    Poly plain_big;
+
+    DCRTPoly plain_dcrt = ptxt->GetElement<DCRTPoly>();
+    auto plain_dcrt_size = plain_dcrt.GetNumOfElements();
+
+    if (plain_dcrt_size > 0) {
+        plain_dcrt.SetFormat(Format::COEFFICIENT);
+        plain_big = plain_dcrt.CRTInterpolate();
+    } else {
+        std::vector<int64_t> value = ptxt->GetPackedValue();
+        Plaintext repack = cryptoContext->MakePackedPlaintext(value);
+        DCRTPoly plain_repack = repack->GetElement<DCRTPoly>();
+        plain_repack.SetFormat(Format::COEFFICIENT);
+        plain_big = plain_repack.CRTInterpolate();
+    }
+
+    auto plain_modulus = plain_big.GetModulus();
+    auto b_modulus = b_big.GetModulus();
+    plain_big.SwitchModulus(b_big.GetModulus(), b_big.GetRootOfUnity(), 0, 0);
+
+    Poly res = b_big - plain_big;
+
+    double noise = (log2(res.Norm()));
+
+    double logQ = 0;
+    std::vector<double> logqi_v;
+    for (usint i = 0; i < sizeQl; i++) {
+        double logqi = log2(cv[0].GetParams()->GetParams()[i]->GetModulus().ConvertToInt());
+        logqi_v.push_back(logqi);
+        logQ += logqi;
+    }
+
+    std::cout << tag << '\t' << "cv " << cv.size() << " Ql " << sizeQl << " logQ: " << logQ << " logqi: " << logqi_v << " noise: " << noise << " budget " << logQ - noise - 1 << std::endl;
 }
