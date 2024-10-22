@@ -467,7 +467,7 @@ public:
    * @return is the digit at a specific index for all entries for a given number
    * base
    */
-    T GetDigitAtIndexForBase(usint index, usint base) const;
+    T GetDigitAtIndexForBase(usint index, uint64_t base) const;
 
 protected:
     ~BigVectorInterface() = default;

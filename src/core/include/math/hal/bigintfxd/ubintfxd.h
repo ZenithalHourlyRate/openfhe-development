@@ -952,7 +952,7 @@ public:
    * @param base is the base with which to determine length in.
    * @return is the requested digit
    */
-    usint GetDigitAtIndexForBase(usint index, usint base) const;
+    usint GetDigitAtIndexForBase(usint index, uint64_t base) const;
 
     /**
    * Tests whether the BigIntegerFixedT is a power of 2.

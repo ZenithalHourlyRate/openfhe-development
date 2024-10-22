@@ -673,7 +673,7 @@ ubint<limb_t> ubint<limb_t>::FromBinaryString(const std::string& vin) {
 
 // TODO: * i to << i
 template <typename limb_t>
-usint ubint<limb_t>::GetDigitAtIndexForBase(usint index, usint base) const {
+usint ubint<limb_t>::GetDigitAtIndexForBase(usint index, uint64_t base) const {
     usint DigitLen = ceil(log2(base));
     usint digit    = 0;
     usint newIndex = 1 + (index - 1) * DigitLen;

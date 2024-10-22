@@ -317,7 +317,7 @@ usint myZZ::GetBitRangeAtIndex(usint ppo, usint length) const {
     return out;
 }
 
-usint myZZ::GetDigitAtIndexForBase(usint index, usint base) const {
+usint myZZ::GetDigitAtIndexForBase(usint index, uint64_t base) const {
     usint DigitLen = std::ceil(log2(base));
     usint digit    = 0;
     usint newIndex = 1 + (index - 1) * DigitLen;

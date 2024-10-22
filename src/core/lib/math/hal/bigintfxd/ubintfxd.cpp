@@ -1621,7 +1621,7 @@ bool BigIntegerFixedT<uint_type, BITLENGTH>::CheckIfPowerOfTwo(const BigIntegerF
 }
 
 template <typename uint_type, usint BITLENGTH>
-usint BigIntegerFixedT<uint_type, BITLENGTH>::GetDigitAtIndexForBase(usint index, usint base) const {
+usint BigIntegerFixedT<uint_type, BITLENGTH>::GetDigitAtIndexForBase(usint index, uint64_t base) const {
     usint DigitLen = ceil(log2(base));
     usint digit    = 0;
     usint newIndex = 1 + (index - 1) * DigitLen;

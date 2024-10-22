@@ -509,7 +509,7 @@ public:
    * @return is the digit at a specific index for all entries for a given number
    * base
    */
-    BigVectorFixedT GetDigitAtIndexForBase(usint index, usint base) const;
+    BigVectorFixedT GetDigitAtIndexForBase(usint index, uint64_t base) const;
 
     // STRINGS & STREAMS
 

@@ -811,7 +811,7 @@ public:
    * @param base is the base with which to determine length in.
    * @return the length of the representation in a specific base.
    */
-    usint GetDigitAtIndexForBase(usint index, usint base) const;
+    usint GetDigitAtIndexForBase(usint index, uint64_t base) const;
 
     /**
    * Gets the bit at the specified index.

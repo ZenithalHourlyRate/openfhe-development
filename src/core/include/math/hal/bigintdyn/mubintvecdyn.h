@@ -566,7 +566,7 @@ public:
    * @return is the digit at a specific index for all entries for a given number
    * base
    */
-    mubintvec GetDigitAtIndexForBase(usint index, usint base) const;
+    mubintvec GetDigitAtIndexForBase(usint index, uint64_t base) const;
 
     // STRINGS & STREAMS
 

@@ -530,7 +530,7 @@ mubintvec<ubint_el_t>& mubintvec<ubint_el_t>::DivideAndRoundEq(const ubint_el_t&
 }
 
 template <class ubint_el_t>
-mubintvec<ubint_el_t> mubintvec<ubint_el_t>::GetDigitAtIndexForBase(usint index, usint base) const {
+mubintvec<ubint_el_t> mubintvec<ubint_el_t>::GetDigitAtIndexForBase(usint index, uint64_t base) const {
     auto ans(*this);
     for (size_t i = 0; i < m_data.size(); ++i)
         ans[i] = static_cast<ubint_el_t>(ans[i].GetDigitAtIndexForBase(index, base));

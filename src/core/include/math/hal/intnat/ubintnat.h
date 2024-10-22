@@ -1723,12 +1723,12 @@ public:
    */
 
     // TODO: * i to << i
-    usint GetDigitAtIndexForBase(usint index, usint base) const {
+    usint GetDigitAtIndexForBase(usint index, uint64_t base) const {
         usint DigitLen = ceil(log2(base));
-        usint digit    = 0;
+        uint64_t digit   = 0;
         usint newIndex = 1 + (index - 1) * DigitLen;
-        for (usint i = 1; i < base; i <<= 1) {
-            digit += GetBitAtIndex(newIndex++) * i;
+        for (uint64_t i = 1; i < base; i <<= 1) {
+            digit += ((uint64_t)GetBitAtIndex(newIndex++)) * i;
         }
         return digit;
     }

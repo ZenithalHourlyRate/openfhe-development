@@ -567,7 +567,7 @@ BigVectorFixedT<IntegerType>& BigVectorFixedT<IntegerType>::DivideAndRoundEq(con
 // OTHER OPERATIONS
 
 template <class IntegerType>
-BigVectorFixedT<IntegerType> BigVectorFixedT<IntegerType>::GetDigitAtIndexForBase(usint index, usint base) const {
+BigVectorFixedT<IntegerType> BigVectorFixedT<IntegerType>::GetDigitAtIndexForBase(usint index, uint64_t base) const {
     BigVectorFixedT ans(*this);
     for (usint i = 0; i < this->m_length; i++) {
         ans.m_data[i] = IntegerType(ans.m_data[i].GetDigitAtIndexForBase(index, base));

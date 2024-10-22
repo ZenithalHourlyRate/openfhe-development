@@ -470,7 +470,7 @@ NativeVectorT<IntegerType>& NativeVectorT<IntegerType>::DivideAndRoundEq(const I
 }
 
 template <class IntegerType>
-NativeVectorT<IntegerType> NativeVectorT<IntegerType>::GetDigitAtIndexForBase(usint index, usint base) const {
+NativeVectorT<IntegerType> NativeVectorT<IntegerType>::GetDigitAtIndexForBase(usint index, uint64_t base) const {
     auto ans(*this);
     for (size_t i = 0; i < ans.m_data.size(); ++i)
         ans[i].m_value = static_cast<BasicInt>(ans[i].GetDigitAtIndexForBase(index, base));

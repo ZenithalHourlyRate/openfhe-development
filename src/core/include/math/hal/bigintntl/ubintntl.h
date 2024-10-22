@@ -939,7 +939,7 @@ public:
    * @param base such that log2(base)+1 is the bitwidth of the subfield
    * @return the unsigned integer value of the subfield
    */
-    usint GetDigitAtIndexForBase(usint index, usint base) const;
+    usint GetDigitAtIndexForBase(usint index, uint64_t base) const;
 
     // variable to store the log(base 2) of the number of bits in the
     // limb data type.
