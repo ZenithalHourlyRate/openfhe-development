@@ -43,14 +43,20 @@ int main() {
     // Sample Program: Step 1 - Set CryptoContext
     CCParams<CryptoContextBGVRNS> parameters;
     parameters.SetMultiplicativeDepth(2);
-    usint ptm = 65537;
-    parameters.SetPlaintextModulus(ptm);
+    parameters.SetPlaintextModulus(65537);
+    parameters.SetScalingTechnique(FIXEDMANUAL);
+    parameters.SetKeySwitchTechnique(HYBRID);
+    //parameters.SetDigitSize(30);
+    parameters.SetNumLargeDigits(3);
+    parameters.SetScalingModSize(51);
 
     CryptoContext<DCRTPoly> cryptoContext = GenCryptoContext(parameters);
     // Enable features that you wish to use
     cryptoContext->Enable(PKE);
     cryptoContext->Enable(KEYSWITCH);
     cryptoContext->Enable(LEVELEDSHE);
+
+    std::cout << *(cryptoContext->GetCryptoParameters()) << std::endl;
 
     // Sample Program: Step 2 - Key Generation
 
@@ -82,74 +88,118 @@ int main() {
     auto ciphertext1 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
     auto ciphertext2 = cryptoContext->Encrypt(keyPair.publicKey, plaintext2);
     auto ciphertext3 = cryptoContext->Encrypt(keyPair.publicKey, plaintext3);
+    auto ciphertext4 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
+    auto ciphertext5 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
+    auto ciphertext6 = cryptoContext->Encrypt(keyPair.publicKey, plaintext2);
+    auto ciphertext7 = cryptoContext->Encrypt(keyPair.publicKey, plaintext3);
+    auto ciphertext8 = cryptoContext->Encrypt(keyPair.publicKey, plaintext1);
     EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertext1, "fresh1");
     EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertext2, "fresh2");
     EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertext3, "fresh3");
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertext4, "fresh4");
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertext5, "fresh5");
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertext6, "fresh6");
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertext7, "fresh7");
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertext8, "fresh8");
 
-    // Sample Program: Step 4 - Evaluation
+    auto ciphertextMul12 = cryptoContext->EvalMult(ciphertext1, ciphertext2);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMul12, "Mul12");
+    cryptoContext->ModReduceInPlace(ciphertextMul12);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMul12, "Mul12r");
+    auto ciphertextMul34 = cryptoContext->EvalMult(ciphertext3, ciphertext4);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMul34, "Mul34");
+    cryptoContext->ModReduceInPlace(ciphertextMul34);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMul34, "Mul34r");
+    auto ciphertextMul1234 = cryptoContext->EvalMult(ciphertextMul12, ciphertextMul34);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMul1234, "Mul1234");
+    cryptoContext->ModReduceInPlace(ciphertextMul1234);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMul1234, "Mul1234r");
 
-    // Homomorphic additions
-    auto ciphertextAdd12     = cryptoContext->EvalAdd(ciphertext1, ciphertext2);
-    auto ciphertextAddResult = cryptoContext->EvalAdd(ciphertextAdd12, ciphertext3);
+    auto ciphertextMul56 = cryptoContext->EvalMult(ciphertext5, ciphertext6);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMul56, "Mul56");
+    cryptoContext->ModReduceInPlace(ciphertextMul56);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMul56, "Mul56r");
+    auto ciphertextMul78 = cryptoContext->EvalMult(ciphertext7, ciphertext8);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMul78, "Mul78");
+    cryptoContext->ModReduceInPlace(ciphertextMul78);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMul78, "Mul78r");
+    auto ciphertextMul5678 = cryptoContext->EvalMult(ciphertextMul56, ciphertextMul78);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMul5678, "Mul5678");
+    cryptoContext->ModReduceInPlace(ciphertextMul5678);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMul5678, "Mul5678r");
 
-    // Homomorphic multiplications
-    // modulus switching is done automatically because by default the modulus
-    // switching method is set to AUTO (rather than MANUAL)
-    auto ciphertextMul12      = cryptoContext->EvalMult(ciphertext1, ciphertext2);
-    auto ciphertextMultResult = cryptoContext->EvalMult(ciphertextMul12, ciphertext3);
-    // Homomorphic rotations
-    auto ciphertextRot1 = cryptoContext->EvalRotate(ciphertext1, 1);
-    auto ciphertextRot2 = cryptoContext->EvalRotate(ciphertext1, 2);
-    auto ciphertextRot3 = cryptoContext->EvalRotate(ciphertext1, -1);
-    auto ciphertextRot4 = cryptoContext->EvalRotate(ciphertext1, -2);
+    auto ciphertextMul12345678 = cryptoContext->EvalMult(ciphertextMul1234, ciphertextMul5678);
+    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMul12345678, "Mul");
 
-    // Sample Program: Step 5 - Decryption
-
-    // Decrypt the result of additions
-    Plaintext plaintextAddResult;
-    cryptoContext->Decrypt(keyPair.secretKey, ciphertextAddResult, &plaintextAddResult);
-
-    std::cout << "#1 + #2 + #3: " << plaintextAddResult << std::endl;
-    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextAddResult, "add");
-
-    // Decrypt the result of multiplications
     Plaintext plaintextMultResult;
-    cryptoContext->Decrypt(keyPair.secretKey, ciphertextMultResult, &plaintextMultResult);
+    cryptoContext->Decrypt(keyPair.secretKey, ciphertextMul12345678, &plaintextMultResult);
 
-    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMultResult, "mult");
+    std::cout << "mult result: " << plaintextMultResult << std::endl;
 
-    // Decrypt the result of rotations
-    Plaintext plaintextRot1;
-    cryptoContext->Decrypt(keyPair.secretKey, ciphertextRot1, &plaintextRot1);
-    Plaintext plaintextRot2;
-    cryptoContext->Decrypt(keyPair.secretKey, ciphertextRot2, &plaintextRot2);
-    Plaintext plaintextRot3;
-    cryptoContext->Decrypt(keyPair.secretKey, ciphertextRot3, &plaintextRot3);
-    Plaintext plaintextRot4;
-    cryptoContext->Decrypt(keyPair.secretKey, ciphertextRot4, &plaintextRot4);
+    //// Sample Program: Step 4 - Evaluation
 
-    plaintextRot1->SetLength(vectorOfInts1.size());
-    plaintextRot2->SetLength(vectorOfInts1.size());
-    plaintextRot3->SetLength(vectorOfInts1.size());
-    plaintextRot4->SetLength(vectorOfInts1.size());
+    //// Homomorphic additions
+    //auto ciphertextAdd12     = cryptoContext->EvalAdd(ciphertext1, ciphertext2);
+    //auto ciphertextAddResult = cryptoContext->EvalAdd(ciphertextAdd12, ciphertext3);
 
-    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextRot1, "rot1");
-    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextRot2, "rot2");
-    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextRot3, "rot-1");
-    EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextRot4, "rot-2");
+    //// Homomorphic multiplications
+    //// modulus switching is done automatically because by default the modulus
+    //// switching method is set to AUTO (rather than MANUAL)
+    //auto ciphertextMul12      = cryptoContext->EvalMult(ciphertext1, ciphertext2);
+    //auto ciphertextMultResult = cryptoContext->EvalMult(ciphertextMul12, ciphertext3);
+    //// Homomorphic rotations
+    //auto ciphertextRot1 = cryptoContext->EvalRotate(ciphertext1, 1);
+    //auto ciphertextRot2 = cryptoContext->EvalRotate(ciphertext1, 2);
+    //auto ciphertextRot3 = cryptoContext->EvalRotate(ciphertext1, -1);
+    //auto ciphertextRot4 = cryptoContext->EvalRotate(ciphertext1, -2);
 
-    std::cout << "Plaintext #1: " << plaintext1 << std::endl;
-    std::cout << "Plaintext #2: " << plaintext2 << std::endl;
-    std::cout << "Plaintext #3: " << plaintext3 << std::endl;
+    //// Sample Program: Step 5 - Decryption
 
-    // Output results
-    std::cout << "\nResults of homomorphic computations" << std::endl;
-    std::cout << "#1 + #2 + #3: " << plaintextAddResult << std::endl;
-    std::cout << "#1 * #2 * #3: " << plaintextMultResult << std::endl;
-    std::cout << "Left rotation of #1 by 1: " << plaintextRot1 << std::endl;
-    std::cout << "Left rotation of #1 by 2: " << plaintextRot2 << std::endl;
-    std::cout << "Right rotation of #1 by 1: " << plaintextRot3 << std::endl;
-    std::cout << "Right rotation of #1 by 2: " << plaintextRot4 << std::endl;
+    //// Decrypt the result of additions
+    //Plaintext plaintextAddResult;
+    //cryptoContext->Decrypt(keyPair.secretKey, ciphertextAddResult, &plaintextAddResult);
+
+    //std::cout << "#1 + #2 + #3: " << plaintextAddResult << std::endl;
+    //EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextAddResult, "add");
+
+    //// Decrypt the result of multiplications
+    //Plaintext plaintextMultResult;
+    //cryptoContext->Decrypt(keyPair.secretKey, ciphertextMultResult, &plaintextMultResult);
+
+    //EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextMultResult, "mult");
+
+    //// Decrypt the result of rotations
+    //Plaintext plaintextRot1;
+    //cryptoContext->Decrypt(keyPair.secretKey, ciphertextRot1, &plaintextRot1);
+    //Plaintext plaintextRot2;
+    //cryptoContext->Decrypt(keyPair.secretKey, ciphertextRot2, &plaintextRot2);
+    //Plaintext plaintextRot3;
+    //cryptoContext->Decrypt(keyPair.secretKey, ciphertextRot3, &plaintextRot3);
+    //Plaintext plaintextRot4;
+    //cryptoContext->Decrypt(keyPair.secretKey, ciphertextRot4, &plaintextRot4);
+
+    //plaintextRot1->SetLength(vectorOfInts1.size());
+    //plaintextRot2->SetLength(vectorOfInts1.size());
+    //plaintextRot3->SetLength(vectorOfInts1.size());
+    //plaintextRot4->SetLength(vectorOfInts1.size());
+
+    //EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextRot1, "rot1");
+    //EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextRot2, "rot2");
+    //EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextRot3, "rot-1");
+    //EvalNoiseBGV(cryptoContext, keyPair.secretKey, ciphertextRot4, "rot-2");
+
+    //std::cout << "Plaintext #1: " << plaintext1 << std::endl;
+    //std::cout << "Plaintext #2: " << plaintext2 << std::endl;
+    //std::cout << "Plaintext #3: " << plaintext3 << std::endl;
+
+    //// Output results
+    //std::cout << "\nResults of homomorphic computations" << std::endl;
+    //std::cout << "#1 + #2 + #3: " << plaintextAddResult << std::endl;
+    //std::cout << "#1 * #2 * #3: " << plaintextMultResult << std::endl;
+    //std::cout << "Left rotation of #1 by 1: " << plaintextRot1 << std::endl;
+    //std::cout << "Left rotation of #1 by 2: " << plaintextRot2 << std::endl;
+    //std::cout << "Right rotation of #1 by 1: " << plaintextRot3 << std::endl;
+    //std::cout << "Right rotation of #1 by 2: " << plaintextRot4 << std::endl;
 
     return 0;
 }

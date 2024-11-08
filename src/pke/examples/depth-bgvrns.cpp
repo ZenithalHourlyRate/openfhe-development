@@ -72,7 +72,8 @@ int main(int argc, char* argv[]) {
     // generate homomorphic evaluation multiplication keys for s^2 and s^3
     CCParams<CryptoContextBGVRNS> parameters;
     parameters.SetMultiplicativeDepth(3);
-    parameters.SetPlaintextModulus(536903681);
+    //parameters.SetPlaintextModulus(536903681);
+    parameters.SetPlaintextModulus(137);
     parameters.SetMaxRelinSkDeg(3);
     parameters.SetScalingTechnique(FIXEDMANUAL);
     parameters.SetKeySwitchTechnique(HYBRID);
@@ -93,6 +94,8 @@ int main(int argc, char* argv[]) {
     std::cout << "log2 q = "
               << log2(cryptoContext->GetCryptoParameters()->GetElementParams()->GetModulus().ConvertToDouble())
               << std::endl;
+
+    std::cout << *(cryptoContext->GetCryptoParameters()) << std::endl;
 
     // Initialize Public Key Containers
     KeyPair<DCRTPoly> keyPair;
