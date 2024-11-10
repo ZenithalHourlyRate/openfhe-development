@@ -192,7 +192,7 @@ public:
         if (el == nullptr)
             return false;
 
-        return CryptoParametersBase<DCRTPoly>::operator==(rhs) && m_scalTechnique == el->GetScalingTechnique() &&
+        return CryptoParametersRLWE<DCRTPoly>::operator==(rhs) && m_scalTechnique == el->GetScalingTechnique() &&
                m_ksTechnique == el->GetKeySwitchTechnique() && m_multTechnique == el->GetMultiplicationTechnique() &&
                m_encTechnique == el->GetEncryptionTechnique() && m_numPartQ == el->GetNumPartQ() &&
                m_auxBits == el->GetAuxBits() && m_extraBits == el->GetExtraBits() && m_PREMode == el->GetPREMode() &&
