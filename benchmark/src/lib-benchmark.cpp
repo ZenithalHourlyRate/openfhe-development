@@ -764,7 +764,7 @@ void BGVrns_KeyGen(benchmark::State& state) {
     }
 }
 
-BENCHMARK(BGVrns_KeyGen)->Unit(benchmark::kMicrosecond);
+// BENCHMARK(BGVrns_KeyGen)->Unit(benchmark::kMicrosecond);
 
 void BGVrns_MultKeyGen(benchmark::State& state) {
     CryptoContext<DCRTPoly> cc = GenerateBGVrnsContext();
@@ -777,7 +777,7 @@ void BGVrns_MultKeyGen(benchmark::State& state) {
     }
 }
 
-BENCHMARK(BGVrns_MultKeyGen)->Unit(benchmark::kMicrosecond);
+// BENCHMARK(BGVrns_MultKeyGen)->Unit(benchmark::kMicrosecond);
 
 void BGVrns_EvalAtIndexKeyGen(benchmark::State& state) {
     CryptoContext<DCRTPoly> cc = GenerateBGVrnsContext();
@@ -795,7 +795,7 @@ void BGVrns_EvalAtIndexKeyGen(benchmark::State& state) {
     }
 }
 
-BENCHMARK(BGVrns_EvalAtIndexKeyGen)->Unit(benchmark::kMicrosecond);
+// BENCHMARK(BGVrns_EvalAtIndexKeyGen)->Unit(benchmark::kMicrosecond);
 
 void BGVrns_Encryption(benchmark::State& state) {
     CryptoContext<DCRTPoly> cryptoContext = GenerateBGVrnsContext();
@@ -810,7 +810,7 @@ void BGVrns_Encryption(benchmark::State& state) {
     }
 }
 
-BENCHMARK(BGVrns_Encryption)->Unit(benchmark::kMicrosecond);
+// BENCHMARK(BGVrns_Encryption)->Unit(benchmark::kMicrosecond);
 
 void BGVrns_Decryption(benchmark::State& state) {
     CryptoContext<DCRTPoly> cc = GenerateBGVrnsContext();
@@ -830,10 +830,18 @@ void BGVrns_Decryption(benchmark::State& state) {
     }
 }
 
-BENCHMARK(BGVrns_Decryption)->Unit(benchmark::kMicrosecond);
+// BENCHMARK(BGVrns_Decryption)->Unit(benchmark::kMicrosecond);
+
+[[maybe_unused]] static void BGVArgs(benchmark::internal::Benchmark* b) {
+    for (uint32_t n : {2048, 4096, 8192, 16384}) {
+        for (uint32_t d : {1, 2, 3, 4}) {
+            b->Args({n, d});
+        }
+    }
+}
 
 void BGVrns_Add(benchmark::State& state) {
-    CryptoContext<DCRTPoly> cc = GenerateBGVrnsContext(state.range(0));
+    CryptoContext<DCRTPoly> cc = GenerateBGVrnsContext(state.range(1), state.range(0));
 
     KeyPair<DCRTPoly> keyPair = cc->KeyGen();
 
@@ -853,7 +861,7 @@ void BGVrns_Add(benchmark::State& state) {
     state.SetComplexityN(state.range(0));
 }
 
-BENCHMARK(BGVrns_Add)->Unit(benchmark::kMicrosecond)->Apply(DepthArgs)->Complexity(benchmark::oAuto);
+BENCHMARK(BGVrns_Add)->Unit(benchmark::kMicrosecond)->Apply(BGVArgs); // ->Complexity(benchmark::oAuto);
 
 void BGVrns_AddInPlace(benchmark::State& state) {
     CryptoContext<DCRTPoly> cc = GenerateBGVrnsContext();
@@ -877,7 +885,7 @@ void BGVrns_AddInPlace(benchmark::State& state) {
 // BENCHMARK(BGVrns_AddInPlace)->Unit(benchmark::kMicrosecond);
 
 void BGVrns_MultNoRelin(benchmark::State& state) {
-    CryptoContext<DCRTPoly> cc = GenerateBGVrnsContext(state.range(0));
+    CryptoContext<DCRTPoly> cc = GenerateBGVrnsContext(state.range(1), state.range(0));
 
     KeyPair<DCRTPoly> keyPair = cc->KeyGen();
 
@@ -897,7 +905,7 @@ void BGVrns_MultNoRelin(benchmark::State& state) {
     state.SetComplexityN(state.range(0));
 }
 
-BENCHMARK(BGVrns_MultNoRelin)->Unit(benchmark::kMicrosecond)->Apply(DepthArgs) ->Complexity(benchmark::oAuto);
+BENCHMARK(BGVrns_MultNoRelin)->Unit(benchmark::kMicrosecond)->Apply(BGVArgs); // ->Complexity(benchmark::oAuto);
 
 void BGVrns_MultRelin(benchmark::State& state) {
     CryptoContext<DCRTPoly> cc = GenerateBGVrnsContext(state.range(0));
@@ -948,14 +956,6 @@ void BGVrns_Relin(benchmark::State& state) {
     //state.SetComplexityN(state.range(0));
 }
 
-[[maybe_unused]] static void BGVArgs(benchmark::internal::Benchmark* b) {
-    for (uint32_t n : {2048, 4096, 8192}) {
-        for (uint32_t d : {1, 2, 3, 4}) {
-            b->Args({n, d});
-        }
-    }
-}
-
 [[maybe_unused]] static void BGVArgs2(benchmark::internal::Benchmark* b) {
     for (uint32_t n : {2048, 4096, 8192}) {
         for (uint32_t d : {2, 5}) {
@@ -964,12 +964,12 @@ void BGVrns_Relin(benchmark::State& state) {
     }
 }
 
-BENCHMARK_TEMPLATE2(BGVrns_Relin, HYBRID, 0)->Unit(benchmark::kMicrosecond)->Apply(BGVArgs); //-> Complexity(benchmark::oAuto);
+// BENCHMARK_TEMPLATE2(BGVrns_Relin, HYBRID, 0)->Unit(benchmark::kMicrosecond)->Apply(BGVArgs); //-> Complexity(benchmark::oAuto);
 BENCHMARK_TEMPLATE2(BGVrns_Relin, HYBRID, 2)->Unit(benchmark::kMicrosecond)->Apply(BGVArgs); //-> Complexity(benchmark::oAuto);
-BENCHMARK_TEMPLATE2(BGVrns_Relin, HYBRID, 3)->Unit(benchmark::kMicrosecond)->Apply(BGVArgs2); //-> Complexity(benchmark::oAuto);
+// BENCHMARK_TEMPLATE2(BGVrns_Relin, HYBRID, 3)->Unit(benchmark::kMicrosecond)->Apply(BGVArgs2); //-> Complexity(benchmark::oAuto);
 BENCHMARK_TEMPLATE2(BGVrns_Relin, BV, 0)->Unit(benchmark::kMicrosecond)->Apply(BGVArgs); // -> Complexity(benchmark::oAuto);
 BENCHMARK_TEMPLATE2(BGVrns_Relin, BV, 30)->Unit(benchmark::kMicrosecond)->Apply(BGVArgs); // -> Complexity(benchmark::oAuto);
-BENCHMARK_TEMPLATE2(BGVrns_Relin, BV, 16)->Unit(benchmark::kMicrosecond)->Apply(BGVArgs); // -> Complexity(benchmark::oAuto);
+// BENCHMARK_TEMPLATE2(BGVrns_Relin, BV, 16)->Unit(benchmark::kMicrosecond)->Apply(BGVArgs); // -> Complexity(benchmark::oAuto);
 BENCHMARK_TEMPLATE2(BGVrns_Relin, BV, 2)->Unit(benchmark::kMicrosecond)->Apply(BGVArgs); // -> Complexity(benchmark::oAuto);
 
 void BGVrns_RelinInPlace(benchmark::State& state) {
@@ -1001,7 +1001,7 @@ void BGVrns_RelinInPlace(benchmark::State& state) {
 // BENCHMARK(BGVrns_RelinInPlace)->Unit(benchmark::kMicrosecond);
 
 void BGVrns_ModSwitch(benchmark::State& state) {
-    CryptoContext<DCRTPoly> cc = GenerateBGVrnsContext(state.range(0));
+    CryptoContext<DCRTPoly> cc = GenerateBGVrnsContext(state.range(1), state.range(0));
 
     KeyPair<DCRTPoly> keyPair = cc->KeyGen();
     cc->EvalMultKeyGen(keyPair.secretKey);
@@ -1024,7 +1024,7 @@ void BGVrns_ModSwitch(benchmark::State& state) {
     state.SetComplexityN(state.range(0));
 }
 
-BENCHMARK(BGVrns_ModSwitch)->Unit(benchmark::kMicrosecond)->Apply(DepthArgs)->Complexity(benchmark::oAuto);
+BENCHMARK(BGVrns_ModSwitch)->Unit(benchmark::kMicrosecond)->Apply(BGVArgs); // ->Complexity(benchmark::oAuto);
 
 void BGVrns_ModSwitchInPlace(benchmark::State& state) {
     CryptoContext<DCRTPoly> cc = GenerateBGVrnsContext();
