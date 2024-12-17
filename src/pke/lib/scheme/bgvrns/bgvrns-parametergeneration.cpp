@@ -351,6 +351,8 @@ bool ParameterGenerationBGVRNS::ParamsGenBGVRNS(std::shared_ptr<CryptoParameters
                                                 uint32_t evalAddCount, uint32_t keySwitchCount, uint32_t cyclOrder,
                                                 uint32_t numPrimes, uint32_t firstModSize, uint32_t dcrtBits,
                                                 uint32_t numPartQ, uint32_t numHops) const {
+    // hack into custom function
+    return ParamsGenBGVRNS(cryptoParams, numPartQ);
     const auto cryptoParamsBGVRNS = std::dynamic_pointer_cast<CryptoParametersBGVRNS>(cryptoParams);
 
     uint32_t ptm                     = cryptoParamsBGVRNS->GetPlaintextModulus();
@@ -635,6 +637,51 @@ bool ParameterGenerationBGVRNS::ParamsGenBGVRNS(std::shared_ptr<CryptoParameters
         }
     }
 
+    return true;
+}
+
+bool ParameterGenerationBGVRNS::ParamsGenBGVRNS(std::shared_ptr<CryptoParametersBase<DCRTPoly>> cryptoParams,
+                                                uint32_t numPartQ) const {
+    std::cerr << "Custom ParamsGenBGVRNS called" << std::endl;
+    const auto cryptoParamsBGVRNS = std::dynamic_pointer_cast<CryptoParametersBGVRNS>(cryptoParams);
+
+    // manually construct paramsDCRT for now
+    auto n         = 16384;
+    auto cyclOrder = 2 * n;
+
+    std::vector<NativeInteger> moduliQ = {
+        2148728833,
+        68720066561,
+        68720295937,
+        163841,
+    };
+    std::vector<NativeInteger> rootsQ = {
+        8602,
+        1132395,
+        344925,
+        7,
+    };
+
+    auto paramsDCRT = std::make_shared<ILDCRTParams<BigInteger>>(cyclOrder, moduliQ, rootsQ);
+    ChineseRemainderTransformFTT<NativeVector>().PreCompute(rootsQ, cyclOrder, moduliQ);
+    cryptoParamsBGVRNS->SetElementParams(paramsDCRT);
+
+    // hard encode encoding for now
+    uint32_t batchSize                  = n;
+    const EncodingParams encodingParams = cryptoParamsBGVRNS->GetEncodingParams();
+    EncodingParams encodingParamsNew(
+        std::make_shared<EncodingParamsImpl>(encodingParams->GetPlaintextModulus(), batchSize));
+    cryptoParamsBGVRNS->SetEncodingParams(encodingParamsNew);
+
+    KeySwitchTechnique ksTech        = cryptoParamsBGVRNS->GetKeySwitchTechnique();
+    ScalingTechnique scalTech        = cryptoParamsBGVRNS->GetScalingTechnique();
+    EncryptionTechnique encTech      = cryptoParamsBGVRNS->GetEncryptionTechnique();
+    MultiplicationTechnique multTech = cryptoParamsBGVRNS->GetMultiplicationTechnique();
+
+    // Size of modulus P
+    // TODO: specify P by ourselves (goes into CryptoParametersRNS::precomputeCRTTables...)
+    uint32_t auxBits = DCRT_MODULUS::MAX_SIZE;
+    cryptoParamsBGVRNS->PrecomputeCRTTables(ksTech, scalTech, encTech, multTech, numPartQ, auxBits, 0);
     return true;
 }
 

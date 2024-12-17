@@ -49,6 +49,10 @@ int main() {
     cryptoContext->Enable(KEYSWITCH);
     cryptoContext->Enable(LEVELEDSHE);
 
+    auto bgvParams = std::dynamic_pointer_cast<CryptoParametersBGVRNS>(cryptoContext->GetCryptoParameters());
+    std::cout << *bgvParams << std::endl;
+    std::cout << *bgvParams->GetParamsP() << std::endl;
+
     // Sample Program: Step 2 - Key Generation
 
     // Initialize Public Key Containers

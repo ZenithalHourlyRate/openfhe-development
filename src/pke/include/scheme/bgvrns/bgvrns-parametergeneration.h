@@ -98,6 +98,8 @@ public:
                          uint32_t keySwitchCount, uint32_t cyclOrder, uint32_t numPrimes, uint32_t firstModSize,
                          uint32_t dcrtBits, uint32_t numPartQ, uint32_t numHops) const override;
 
+    bool ParamsGenBGVRNS(std::shared_ptr<CryptoParametersBase<DCRTPoly>> cryptoParams, uint32_t numPartQ) const;
+
     /////////////////////////////////////
     // SERIALIZATION
     /////////////////////////////////////
