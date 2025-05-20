@@ -35,12 +35,27 @@
 
 #include "openfhe.h"
 
+#include <cassert>
+
 using namespace lbcrypto;
 
-template <int depth, int ringDim, int mulDepth, int numTests>
-int gaussian_mult() {
-    std::cout << "Depth: " << depth << ", RingDim: " << ringDim << ", MulDepth: " << mulDepth
-              << ", NumTests: " << numTests << std::endl;
+int gaussian_mult(unsigned depth, int ringDim, int mulDepth, int numTests, int isKey) {
+    // open file gaussian_depth_ringdim_muldepth_numtests.txt
+    std::ofstream out_indep("gaussian_" + std::to_string(depth) + "_" + std::to_string(ringDim) + "_" +
+                            std::to_string(mulDepth) + "_" + std::to_string(numTests) + "_" + std::to_string(isKey) +
+                            "_indep.txt");
+    std::ofstream out_dep("gaussian_" + std::to_string(depth) + "_" + std::to_string(ringDim) + "_" +
+                          std::to_string(mulDepth) + "_" + std::to_string(numTests) + "_" + std::to_string(isKey) +
+                          "_dep.txt");
+
+    out_indep << "Depth: " << depth << ", RingDim: " << ringDim << ", MulDepth: " << mulDepth
+              << ", NumTests: " << numTests << ", isKey: " << isKey << std::endl;
+    out_dep << "Depth: " << depth << ", RingDim: " << ringDim << ", MulDepth: " << mulDepth
+            << ", NumTests: " << numTests << ", isKey: " << isKey << std::endl;
+
+    constexpr int ARRAY_LEN = 256;
+    assert(depth < ARRAY_LEN);
+
     CCParams<CryptoContextBFVRNS> parameters;
     // ptm is not important, just for making sure Q is large enough
     parameters.SetPlaintextModulus(65537);
@@ -65,11 +80,14 @@ int gaussian_mult() {
         logqi_v.push_back(logqi);
         logQ += logqi;
     }
-    std::cout << "logQ : " << logQ << std::endl;
-    // std::cout << *(cryptoContext->GetCryptoParameters()) << std::endl;
+    out_indep << "logQ : " << logQ << std::endl;
+    out_dep << "logQ : " << logQ << std::endl;
+    out_indep << *(cryptoContext->GetCryptoParameters()) << std::endl;
+    out_dep << *(cryptoContext->GetCryptoParameters()) << std::endl;
 
     // Get Discrete Gaussian
-    const DCRTPoly::DggType& dgg = cryptoParams->GetDiscreteGaussianGenerator();
+    [[maybe_unused]] const DCRTPoly::DggType& dgg = cryptoParams->GetDiscreteGaussianGenerator();
+    [[maybe_unused]] DCRTPoly::TugType tug;
 
     auto getNorm = [&](DCRTPoly e) {
         e.SetFormat(Format::COEFFICIENT);
@@ -78,10 +96,12 @@ int gaussian_mult() {
 
     auto indepExpr = [&]() {
         std::vector<double> norms;
-        DCRTPoly e(dgg, elementParams, Format::EVALUATION);
+        auto e =
+            isKey ? DCRTPoly(tug, elementParams, Format::EVALUATION) : DCRTPoly(dgg, elementParams, Format::EVALUATION);
         norms.push_back(getNorm(e));
-        for (auto i = 0; i != depth - 1; ++i) {
-            DCRTPoly newE(dgg, elementParams, Format::EVALUATION);
+        for (unsigned i = 0; i != depth - 1; ++i) {
+            auto newE = isKey ? DCRTPoly(tug, elementParams, Format::EVALUATION) :
+                                DCRTPoly(dgg, elementParams, Format::EVALUATION);
             e *= newE;
             norms.push_back(getNorm(e));
         }
@@ -90,18 +110,19 @@ int gaussian_mult() {
 
     auto depExpr = [&]() {
         std::vector<double> norms;
-        DCRTPoly e(dgg, elementParams, Format::EVALUATION);
+        auto e =
+            isKey ? DCRTPoly(tug, elementParams, Format::EVALUATION) : DCRTPoly(dgg, elementParams, Format::EVALUATION);
         norms.push_back(getNorm(e));
         DCRTPoly oldE = e;
-        for (auto i = 0; i != depth - 1; ++i) {
+        for (unsigned i = 0; i != depth - 1; ++i) {
             e *= oldE;
             norms.push_back(getNorm(e));
         }
         return norms;
     };
 
-    std::array<std::vector<double>, depth> indepNormsExprs;
-    std::array<std::vector<double>, depth> depNormsExprs;
+    std::array<std::vector<double>, ARRAY_LEN> indepNormsExprs;
+    std::array<std::vector<double>, ARRAY_LEN> depNormsExprs;
 
     for (auto i = 0; i != numTests; ++i) {
         auto indepNorms = indepExpr();
@@ -112,13 +133,13 @@ int gaussian_mult() {
         }
     }
 
-    std::array<double, depth> indepMedians;
-    std::array<double, depth> indepMaxs;
-    std::array<double, depth> depMedians;
-    std::array<double, depth> depMaxs;
+    std::array<double, ARRAY_LEN> indepMedians;
+    std::array<double, ARRAY_LEN> indepMaxs;
+    std::array<double, ARRAY_LEN> depMedians;
+    std::array<double, ARRAY_LEN> depMaxs;
 
     // calculate the median and max
-    for (auto i = 0; i != depth; ++i) {
+    for (unsigned i = 0; i != depth; ++i) {
         std::sort(indepNormsExprs[i].begin(), indepNormsExprs[i].end());
         std::sort(depNormsExprs[i].begin(), depNormsExprs[i].end());
         auto indepMedian = indepNormsExprs[i][numTests / 2];
@@ -132,20 +153,32 @@ int gaussian_mult() {
     }
 
     // print the results
-    std::cout << "Independent expression norms: " << std::endl;
-    for (unsigned i = 0; i != indepMedians.size(); ++i) {
-        std::cout << "Median: " << indepMedians[i] << ", Max: " << indepMaxs[i] << std::endl;
+    out_indep << "Independent expression norms: " << std::endl;
+    for (unsigned i = 0; i != depth; ++i) {
+        out_indep << "Median: " << indepMedians[i] << ", Max: " << indepMaxs[i] << std::endl;
     }
-    std::cout << "Dependent expression norms: " << std::endl;
-    for (unsigned i = 0; i != depMedians.size(); ++i) {
-        std::cout << "Median: " << depMedians[i] << ", Max: " << depMaxs[i] << std::endl;
+    out_dep << "Dependent expression norms: " << std::endl;
+    for (unsigned i = 0; i != depth; ++i) {
+        out_dep << "Median: " << depMedians[i] << ", Max: " << depMaxs[i] << std::endl;
     }
     return 0;
 }
 
-int main() {
-    // gaussian_mult</*depth*/ 64, /*ringDim*/ 64, /*mulDepth*/ 15, /*numTests*/ 10>();
-    gaussian_mult</*depth*/ 32, /*ringDim*/ 65536, /*mulDepth*/ 15, /*numTests*/ 1000>();
-    // gaussian_mult</*depth*/ 64, /*ringDim*/ 65536, /*mulDepth*/ 20, /*numTests*/ 10>();
+int main(int argc, char* argv[]) {
+    // get depth,ringdim,muldepth,numtests from command line
+    if (argc != 6) {
+        std::cerr << "Usage: " << argv[0] << " <depth> <ringDim> <mulDepth> <numTests> <isKey>" << std::endl;
+        return 1;
+    }
+    unsigned depth = std::stoi(argv[1]);
+    int ringDim    = std::stoi(argv[2]);
+    int mulDepth   = std::stoi(argv[3]);
+    int numTests   = std::stoi(argv[4]);
+    int isKey      = std::stoi(argv[5]);
+
+    // typical values
+    // gaussian: depth=32, ringDim=65536, mulDepth=15, numTests=1000
+
+    gaussian_mult(/*depth*/ depth, /*ringDim*/ ringDim, /*mulDepth*/ mulDepth, /*numTests*/ numTests, /*isKey*/ isKey);
     return 0;
 }
