@@ -510,7 +510,7 @@ double PolyImpl<VecType>::Norm() const {
             maxVal = val > maxVal ? val : maxVal;
     }
     minVal = q - minVal;
-    return (minVal > maxVal ? minVal : maxVal).ConvertToDouble();
+    return (minVal > maxVal ? minVal : maxVal).GetMSB();
 }
 
 // Write vector x(current value of the PolyImpl object) as \sum\limits{ i = 0
