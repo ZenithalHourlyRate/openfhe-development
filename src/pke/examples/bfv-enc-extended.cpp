@@ -1,38 +1,3 @@
-//==================================================================================
-// BSD 2-Clause License
-//
-// Copyright (c) 2014-2022, NJIT, Duality Technologies Inc. and other contributors
-//
-// All rights reserved.
-//
-// Author TPOC: contact@openfhe.org
-//
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-//
-// 1. Redistributions of source code must retain the above copyright notice, this
-//    list of conditions and the following disclaimer.
-//
-// 2. Redistributions in binary form must reproduce the above copyright notice,
-//    this list of conditions and the following disclaimer in the documentation
-//    and/or other materials provided with the distribution.
-//
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
-// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
-// FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-// DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-// CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
-// OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//==================================================================================
-
-/*
-  Simple example for BFVrns (integer arithmetic)
- */
-
 #include "openfhe.h"
 
 using namespace lbcrypto;
@@ -79,26 +44,8 @@ DCRTPoly DecryptCore(const std::vector<DCRTPoly>& cv, const PrivateKey<DCRTPoly>
 
 void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
                   const std::map<std::string, std::string>& debugAttrMap) {
-#ifdef OP
-    auto isBlockArgument = debugAttrMap.at("asm.is_block_arg");
-    if (isBlockArgument == "1") {
-        std::cout << "Input" << std::endl;
-    }
-    else {
-        std::cout << debugAttrMap.at("asm.op_name") << std::endl;
-    }
-#endif
-
-#ifdef DECRYPT
-    PlaintextT ptxt;
-    cc->Decrypt(sk, ct, &ptxt);
-    ptxt->SetLength(std::stod(debugAttrMap.at("message.size")));
-    std::cout << "  " << ptxt << std::endl;
-#endif
-
 #ifdef NOISE
-    auto cv       = ct->GetElements();
-    size_t sizeQl = cv[0].GetParams()->GetParams().size();
+    auto cv = ct->GetElements();
 
     auto b = DecryptCore(cv, sk);
     b.SetFormat(Format::COEFFICIENT);
@@ -114,7 +61,6 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
     std::vector<NativeInteger> tInvModq = cryptoParams->GettInvModq();
 
     // Get a new plaintext with full slots
-    // SetLength(8) above will truncate the plaintext
     PlaintextT newPtxt;
     cc->Decrypt(sk, ct, &newPtxt);
     // Repack to convert from NativePoly to DCRTPoly
@@ -128,20 +74,10 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
     DCRTPoly res;
     res = b - plain;
 
+    // CAUTION: here we use the default Openfhe Norm, unlike other tests
     double noise = (log2(res.Norm()));
 
-    double logQ = 0;
-    std::vector<double> logqi_v;
-    for (usint i = 0; i < sizeQl; i++) {
-        double logqi = log2(cv[0].GetParams()->GetParams()[i]->GetModulus().ConvertToInt());
-        logqi_v.push_back(logqi);
-        logQ += logqi;
-    }
-
-    auto logT = log2(t.ConvertToInt());
-
-    std::cout << "  cv " << cv.size() << " Ql " << sizeQl << " log(Q/2T): " << logQ - logT - 1 << " logqi: " << logqi_v
-              << " budget " << logQ - logT - 1 - noise << " noise: " << noise << std::endl;
+    std::cout << "noise: " << noise << std::endl;
 
     auto ringDim = cv[0].GetParams()->GetRingDimension();
     // expansion factor delta
@@ -151,18 +87,11 @@ void __heir_debug(CryptoContextT cc, PrivateKeyT sk, CiphertextT ct,
 
     auto Bkey = 1;
 
-    auto bound = (1. + delta(ringDim) * Bkey) / 2.;
-    std::cout << "  noise bound: " << log2(bound) << "  gap: " << log2(bound) - noise << std::endl;
+    auto bound = log2((1. + delta(ringDim) * Bkey) / 2.);
+    std::cout << "noise bound: " << bound << "  gap: " << bound - noise << std::endl;
 
-    if (log2(bound) < noise) {
+    if (bound < noise) {
         std::cout << "exceeded!" << std::endl;
-    }
-
-    // print the predicted bound by analysis
-    if (debugAttrMap.find("noise.bound") != debugAttrMap.end()) {
-        double noiseBound = std::stod(debugAttrMap.at("noise.bound"));
-
-        std::cout << "  noise bound: " << noiseBound << "  gap: " << noiseBound - noise << std::endl;
     }
 #endif
 }
@@ -177,6 +106,7 @@ int main() {
     CryptoContext<DCRTPoly> cryptoContext = GenCryptoContext(parameters);
     // Enable features that you wish to use
     cryptoContext->Enable(PKE);
+    cryptoContext->Enable(LEVELEDSHE);
 
     // Sample Program: Step 2: Key Generation
 
