@@ -384,7 +384,7 @@ void ParameterGenerationCKKSRNS::CompositePrimeModuliGen(std::vector<NativeInteg
                 flag = false;
             }
         }  // for loop
-    }      // if numPrimes > 1
+    }  // if numPrimes > 1
 
     for (uint32_t d = 1, remBits = firstModSize; d <= compositeDegree; ++d) {
         uint32_t qBitSize = std::ceil(static_cast<double>(remBits) / (compositeDegree - d + 1));
@@ -424,7 +424,7 @@ void ParameterGenerationCKKSRNS::SinglePrimeModuliGen(std::vector<NativeInteger>
     NativeInteger maxPrime{q};
     NativeInteger minPrime{q};
     if (numPrimes > 1) {
-        if (scalTech != FLEXIBLEAUTO && scalTech != FLEXIBLEAUTOEXT) {
+        if (scalTech != FLEXIBLEAUTO && scalTech != FLEXIBLEAUTOEXT && scalTech != FLEXIBLEMANUAL) {
             NativeInteger qPrev = q;
             NativeInteger qNext = q;
             for (size_t i = numPrimes - 2, cnt = 0; i >= 1; --i, ++cnt) {
